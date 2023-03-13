@@ -165,3 +165,4 @@ function showSavedCity() {
 }
 // This keeps the buttons on the page even when the browser is refreshed
 renderButtons()
+
