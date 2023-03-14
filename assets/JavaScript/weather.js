@@ -1,110 +1,172 @@
-var searchCity = []
-// Moment JS to display the current date next to the search city 
-var todayDate = moment().format(' (D/M/YYYY)');
+// $.ajax({
+//     url: "https://api.openweathermap.org/data/2.5/forecast",
+//     data: {
+//         lat: [], // latitude of the city
+//         lon: [], // longitude of the city
+//         appid: "91c2192a6f0948bb2d116c3e5eb13b43" // your OpenWeatherMap API key
+//     },
+//     success: function (response) {
+//         // extract the relevant information from the JSON response
+//         var city = response.city.name;
+//         var date = response.list[0].dt_txt;
+//         var icon = response.list[0].weather[0].icon;
+//         var temp = response.list[0].main.temp;
+//         var humidity = response.list[0].main.humidity;
 
-// This runs all the below functions when the search button is pressed 
-$('#search-button').on('click', function (e) {
-    // this stops the button to refresh the page
-    e.preventDefault()
-    // assign the cityName from the users input and then push into empty array so that it can be rendered onto page using renderButton function
-    var cityName = $('#search-input').val()
-    searchCity.push(cityName)
-    // Need to pass cityName into function as it shown below with the function
-    cityAPI(cityName)
-    // this clears duplicate buttons so that there is only one
-    clearButtons()
-    // This displays the date on top of the cards
-    dates()
-    // This displays and gets the info from API forecast for the next 5 days
-    fiveDayForecast(cityName)
-    // This saves the info of the city name and weather to the local storage
-    saveCity()
-    // This gets the city name and the relevant weather from the local storgae
-    showSavedCity()
-    renderButtons()
-})
+//         // display the information on your dashboard
+//         $("#city").text(city);
+//         $("#date").text(date);
+//         $("#icon").attr("src", "https://openweathermap.org/img/w/" + icon + ".png");
+//         $("#temp").text(temp);
+//         $("#humidity").text(humidity);
+//     }
+// });
+
+var cityList = [];
+// get the user's input city name from a form input field
+var cityName = $("#cityInput").val();
+// Moment JS to display the current date next to the search city 
+var currentDate = moment().format(' (D/M/YYYY)');
+// add the city name to the array
+cityList.push(cityName);
+
+
+
+// store the updated array in localStorage
+localStorage.setItem("cityList", JSON.stringify(cityList));
+// retrieve the cityList array from localStorage
+var cityList = JSON.parse(localStorage.getItem("cityList"));
+
+// loop through the array and display each city in a list on the dashboard
+for (var i = 0; i < cityList.length; i++) {
+    var city = cityList[i];
+    var listItem = $("<li>").text(city);
+    $("#cityList").append(listItem);
+}
+
+$(document).ready(function () {
+    // retrieve the cityList array from localStorage
+    var cityList = JSON.parse(localStorage.getItem("cityList"));
+
+    // loop through the array and display each city in a list on the dashboard
+    for (var i = 0; i < cityList.length; i++) {
+        var city = cityList[i];
+        var listItem = $("<li>").text(city);
+        $("#city-list").append(listItem);
+    }
+
+    // add click event listener to the Clear History button
+    $("#clear-history").on("click", function () {
+        // clear the cityList array in localStorage
+        localStorage.removeItem("cityList");
+        // clear the list of cities on the dashboard
+        $("#city-list").empty();
+    });
+
+    // add submit event listener to the search form
+    $("form").on("submit", function (event) {
+        event.preventDefault();
+        // get the value of the city input field
+        var city = $("#city-input").val().trim();
+        // call the function to get weather data for the city
+        getWeatherData(city);
+        // clear the city input field
+        $("#city-input").val("");
+        cityList.push(city)
+        getWeatherData(city)
+        date()
+        displayForecast(city)
+        addToSearchHistory(city);
+        showSavedCity()
+        renderButtons()
+    });
+});
 
 function renderButtons() {
     // Need to use showSavedCity function whcih is where we get te information from local storage, which we will then assign this to the new rendered button below
     showSavedCity()
     // loop to go through the empty array of searchCity so that a new button can be rendered
-    for (var i = 0; i < searchCity.length; i++) {
-        console.log(searchCity[i])
+    for (var i = 0; i < cityList.length; i++) {
+        console.log(cityList[i])
         var buttons = $('<button>')
         // Assigned its id and class so that I can use it for formatting
         buttons.attr({ 'id': "cityBtn", 'class': "col-sm-12" })
         // Buttons text is from the looping through of searchCity by the users input 
-        buttons.text(searchCity[i])
+        buttons.text(cityList[i])
         // Adds the buttons to the div on the pagex 
         $("#history").append(buttons);
         // tried to add the getItem storage into the function that loops through new button elements
         buttons.on('click', function (event) {
             // used event target to target the element that caused the button on click
             var cityName = $(event.target).text()
-            cityAPI(cityName)
-            dates()
-            fiveDayForecast(cityName)
+            getWeatherData(cityName)
+            date()
+            displayForecast(cityName)
         })
 
     }
 
 }
-// clear buttons stop them to showing on page twice
-function clearButtons() {
-    $('#history').empty()
-}
-// Get the user input and put into cityName variable, available globally
-var cityName = $('#search-input').val()
 
-// When user put in town and clicks button, put the city into the link for API
-function cityAPI(cityName) {
-    var APIKey = "5b045dfac16392eda5cca0b2562f708e";
-    // use cityName to help find the relevant API address for the city
-    var queryURL = "https://api.openweathermap.org/data/2.5/weather?q=" + cityName + "&appid=" + APIKey;
+function getWeatherData(city) {
+    // make the API call to OpenWeatherMap
+    var APIkey = "91c2192a6f0948bb2d116c3e5eb13b43";
+    var queryURL = "https://api.openweathermap.org/data/2.5/forecast?q=" + city + "&appid=" + APIkey;
     $.ajax({
         url: queryURL,
         method: "GET"
-    }).then(function (response) {
-        // Log the queryURL
-        console.log(queryURL);
-        // Log the resulting object
-        console.log(response);
-        // Assigned response.cod to variable so that I could check if incorrect town or now town input
-        let cityCod = response.cod
-        console.log(cityCod)
-        if (cityCod === '404') {
-            // alerts user to input correct city name if incorrect, this if/else also show in the .catch function
-            return alert('Please input correct city name')
-        }
-        else {
-            saveCity()
-            // assigned the responses to variables 
-            // convert to celcius by minussing the below number
-            var tempCalc = response.main.temp - 273.15;
-            var city = response.name;
-            var wind = response.wind.speed;
-            var humidity = response.main.humidity;
-            var icon = response.weather[0].icon;
-            // https://www.youtube.com/watch?v=8R3FtApLdms
-            // same format as the API address to find the correct icon for the weather
-            var iconUrl = "http://openweathermap.org/img/wn/" + icon + ".png"
-            // Set the attribute of the iconUrl so that it shows the correct icon in the icon div
-            var iconFormat = $('#icon').attr('src', iconUrl,);
-            $('#city').text(city + todayDate);
-            // toFixed to reduce it to 2 decimal point
-            $('#temp').text('Temperature: ' + tempCalc.toFixed(2) + "°C");
-            $('#wind').text('Wind: ' + wind + "KPH");
-            $('#humidity').text('Humidity: ' + humidity + "%");
-        }
     })
-        // if then fails then catch with run
-        .catch(function (error) {
-            console.log(error)
-            return alert('Please input correct city name')
-        })
+        .then(function (response) {
+            console.log(queryURL);
+            console.log(response);
+            let cityCod = response.cod
+            console.log(cityCod)
+            if (cityCod === 'not found') {
+                return alert('City name not found')
+            }
+            else {
+                addToSearchHistory()
+                var tempCalc = response.main.temp - 273.15;
+                var city = response.name;
+                var wind = response.wind.speed;
+                var humidity = response.main.humidity;
+                var icon = response.weather[0].icon;
+                var iconUrl = "http://openweathermap.org/img/wn/" + icon + ".png"
+                var iconFormat = $('#icon').attr('src', iconUrl,);
+                $('#city').text(city + todayDate);
+                // toFixed to reduce it to 2 decimal point
+                $('#temp').text('Temperature: ' + tempCalc.toFixed(2) + "°C");
+                $('#wind').text('Wind: ' + wind + "KPH");
+                $('#humidity').text('Humidity: ' + humidity + "%");
+
+
+
+                // display the current weather data
+                displayCurrentWeather(response);
+                // display the 5-day forecast
+                displayForecast(response);
+                // add the city to the search history
+                addToSearchHistory(city);
+            }
+        });
+
 }
-// Function to display the date on each of the 5 day weather forecast cards
-function dates() {
+
+
+function displayCurrentWeather(response) {
+    // extract the necessary data from the API response
+    var cityName = response.city.name;
+    var date = response.list[0].dt_txt.split(" ")[0];
+    var icon = "http://openweathermap.org/img/w/" + response.list[0].weather[0].icon + ".png";
+    var temp = convertKelvinToFahrenheit(response.list[0].main.temp);
+    var humidity = response.list[0].main.humidity;
+    var windSpeed = response.list[0].wind.speed;
+    // create HTML elements to display the data
+    var cityHeader = $("<h3>").text(cityName + " (" + date + ")");
+    var weatherIcon = $("<img>").attr
+}
+
+function date() {
     // Setting variable and adding the amount of the days from the current date
     let tomorrow = moment().add(1, 'days');
     let twoDays = moment().add(2, 'days');
@@ -119,9 +181,9 @@ function dates() {
     $('#fiveDays').text(fiveDays.format(' D/M/YYYY'))
 }
 
-function fiveDayForecast(cityName) {
+function displayForecast(cityName) {
     // Similar format when trying to find the city day weather
-    var APIKey = "5b045dfac16392eda5cca0b2562f708e";
+    var APIKey = "91c2192a6f0948bb2d116c3e5eb13b43";
     var queryURL = "https://api.openweathermap.org/data/2.5/forecast?q=" + cityName + "&appid=" + APIKey;
     $.ajax({
         url: queryURL,
@@ -153,16 +215,3 @@ function fiveDayForecast(cityName) {
     }
     )
 }
-
-
-function saveCity() {
-    localStorage.setItem("searchCity", JSON.stringify(searchCity)); //saves city input to local storage 
-}
-
-// Saving to local storage but not displaying the city button once refreshed
-function showSavedCity() {
-    searchCity = JSON.parse(localStorage.getItem('searchCity')) || [];
-}
-// This keeps the buttons on the page even when the browser is refreshed
-renderButtons()
-
